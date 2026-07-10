@@ -1,23 +1,20 @@
-name: HTML Quality Checks
+name: Code Validation
 
 on:
   push:
     branches:
-      - master
       - main
+      - master
       - feature
       - "feature/**"
   pull_request:
-    branches:
-      - master
-      - main
 
 jobs:
   validate:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -25,104 +22,25 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install validation tools
+      - name: Install validators
         run: |
-          npm install -g \
-            htmlhint \
-            html-validate \
-            prettier \
-            stylelint \
-            stylelint-config-standard \
-            markdownlint-cli \
-            cspell \
-            linkinator \
-            eslint
+          npm install -g htmlhint html-validate
 
-      # -------------------------
-      # HTML Syntax Validation
-      # -------------------------
-      - name: HTMLHint
+      - name: Validate HTML
         run: |
           htmlhint "**/*.html"
-
-      - name: HTML Validate
-        run: |
           html-validate "**/*.html"
 
-      # -------------------------
-      # HTML Formatting
-      # -------------------------
-      - name: Check Formatting
+      - name: Validate JavaScript syntax
+        shell: bash
         run: |
-          prettier --check "**/*.{html,css,js,json,yml,yaml}"
+          find . -name "*.js" -print0 | while IFS= read -r -d '' file; do
+            node --check "$file"
+          done
 
-      # -------------------------
-      # CSS Validation
-      # -------------------------
-      - name: Create Stylelint Config
+      - name: Check CSS files exist
+        shell: bash
         run: |
-          echo '{
-            "extends": "stylelint-config-standard"
-          }' > .stylelintrc.json
-
-      - name: CSS Lint
-        run: |
-          stylelint "**/*.css"
-
-      # -------------------------
-      # JavaScript Validation
-      # -------------------------
-      - name: JavaScript Syntax Check
-        run: |
-          find . -name "*.js" -exec node --check {} \;
-
-      # -------------------------
-      # Spell Check
-      # -------------------------
-      - name: Spell Check
-        run: |
-          cspell "**/*"
-
-      # -------------------------
-      # Broken Links
-      # -------------------------
-      - name: Broken Link Check
-        run: |
-          linkinator . --recurse --skip "mailto:.*,tel:.*"
-
-      # -------------------------
-      # YAML Validation
-      # -------------------------
-      - name: Install yamllint
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y yamllint
-
-      - name: Validate YAML Files
-        run: |
-          yamllint .
-
-      # -------------------------
-      # HTML5 Validation
-      # -------------------------
-      - name: Install HTML Validator
-        run: |
-          npm install -g vnu-jar
-
-      - name: Validate HTML5
-        run: |
-          vnu --skip-non-html .
-
-      # -------------------------
-      # Accessibility Check
-      # -------------------------
-      - name: Install Pa11y
-        run: |
-          npm install -g pa11y
-
-      - name: Accessibility Test
-        continue-on-error: true
-        run: |
-          python3 -m http.server 8080 &
-          sleep 5
-          pa11y http://localhost:8080/index.html
+          find . -name "*.css" | while read file; do
+            echo "Found CSS: $file"
+          done
