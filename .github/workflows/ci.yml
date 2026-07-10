@@ -1,18 +1,128 @@
-name: Website Build CI
+name: HTML Quality Checks
 
 on:
   push:
-    branches: [ "main", "feature/*" ]
+    branches:
+      - master
+      - main
+      - feature
+      - "feature/**"
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - master
+      - main
 
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Simulate Code Linting & Testing
-      run: |
-        echo "Running enterprise code quality checks..."
-        echo "All 124 Unit Tests Passed Successfully!"
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install validation tools
+        run: |
+          npm install -g \
+            htmlhint \
+            html-validate \
+            prettier \
+            stylelint \
+            stylelint-config-standard \
+            markdownlint-cli \
+            cspell \
+            linkinator \
+            eslint
+
+      # -------------------------
+      # HTML Syntax Validation
+      # -------------------------
+      - name: HTMLHint
+        run: |
+          htmlhint "**/*.html"
+
+      - name: HTML Validate
+        run: |
+          html-validate "**/*.html"
+
+      # -------------------------
+      # HTML Formatting
+      # -------------------------
+      - name: Check Formatting
+        run: |
+          prettier --check "**/*.{html,css,js,json,yml,yaml}"
+
+      # -------------------------
+      # CSS Validation
+      # -------------------------
+      - name: Create Stylelint Config
+        run: |
+          echo '{
+            "extends": "stylelint-config-standard"
+          }' > .stylelintrc.json
+
+      - name: CSS Lint
+        run: |
+          stylelint "**/*.css"
+
+      # -------------------------
+      # JavaScript Validation
+      # -------------------------
+      - name: JavaScript Syntax Check
+        run: |
+          find . -name "*.js" -exec node --check {} \;
+
+      # -------------------------
+      # Spell Check
+      # -------------------------
+      - name: Spell Check
+        run: |
+          cspell "**/*"
+
+      # -------------------------
+      # Broken Links
+      # -------------------------
+      - name: Broken Link Check
+        run: |
+          linkinator . --recurse --skip "mailto:.*,tel:.*"
+
+      # -------------------------
+      # YAML Validation
+      # -------------------------
+      - name: Install yamllint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yamllint
+
+      - name: Validate YAML Files
+        run: |
+          yamllint .
+
+      # -------------------------
+      # HTML5 Validation
+      # -------------------------
+      - name: Install HTML Validator
+        run: |
+          npm install -g vnu-jar
+
+      - name: Validate HTML5
+        run: |
+          vnu --skip-non-html .
+
+      # -------------------------
+      # Accessibility Check
+      # -------------------------
+      - name: Install Pa11y
+        run: |
+          npm install -g pa11y
+
+      - name: Accessibility Test
+        continue-on-error: true
+        run: |
+          python3 -m http.server 8080 &
+          sleep 5
+          pa11y http://localhost:8080/index.html
